@@ -1,0 +1,13 @@
+{
+  "Sun": {"gate": 10, "line": 3},
+  "Earth": {"gate": 20, "line": 1},
+  "Moon": {"gate": 2, "line": 5},
+  "Mercury": {"gate": 7, "line": 6},
+  "Venus": {"gate": 15, "line": 2},
+  "Mars": {"gate": 34, "line": 4},
+  "Jupiter": {"gate": 1, "line": 2},
+  "Saturn": {"gate": 41, "line": 1},
+  "Uranus": {"gate": 51, "line": 5},
+  "Neptune": {"gate": 24, "line": 3},
+  "Pluto": {"gate": 55, "line": 6}
+}
