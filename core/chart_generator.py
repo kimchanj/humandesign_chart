@@ -1,27 +1,30 @@
-from typing import Dict
-from core.astro_calculator import AstroCalculator
-from core.gate_mapper import GateMapper
-
 class ChartGenerator:
-    def __init__(self, birth_datetime, location, mapping_file="data/gate_mapping.json"):
+    def __init__(self, astro_calculator, gate_mapper, birth_datetime, location):
+        self.astro = astro_calculator
+        self.mapper = gate_mapper
         self.birth_datetime = birth_datetime
-        self.location = location
-        self.astro = AstroCalculator()
-        self.gate_mapper = GateMapper(mapping_file)
+        self.location = location  # (latitude, longitude)
 
-    def generate_chart(self) -> Dict[str, Dict[str, int]]:
+    def generate_chart(self):
         """
-        사용자의 탄생 정보 기반 휴먼디자인 차트 생성
-        :return: 행성명 → {"gate": int, "line": int}
+        행성 위치 계산 → RA값을 게이트, 라인에 매핑 → 결과 딕셔너리 리턴
+        {
+            'Sun': {'ra_degrees': ..., 'dec_degrees': ..., 'gate': ..., 'line': ...},
+            ...
+        }
         """
         planet_positions = self.astro.calculate_planet_positions(self.birth_datetime, self.location)
-
         chart = {}
-        for planet, position in planet_positions.items():
-            gate_info = self.gate_mapper.get_gate_info(planet)
-            if gate_info:
-                chart[planet] = gate_info
-            else:
-                chart[planet] = {"gate": None, "line": None}
+
+        for planet, pos in planet_positions.items():
+            ra_deg = pos['ra_degrees']
+            dec_deg = pos['dec_degrees']
+            gate, line = self.mapper.ra_to_gate_and_line(ra_deg)
+            chart[planet] = {
+                'ra_degrees': ra_deg,
+                'dec_degrees': dec_deg,
+                'gate': gate,
+                'line': line,
+            }
 
         return chart

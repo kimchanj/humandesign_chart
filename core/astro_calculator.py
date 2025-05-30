@@ -1,32 +1,61 @@
 from skyfield.api import load, Topos
-from skyfield.data import mpc
-from datetime import datetime
-from typing import Dict
+from datetime import datetime, timezone
 
 class AstroCalculator:
     def __init__(self):
-        self.planets = load('de421.bsp')  # 천문학적 데이터 파일
+        # JPL 천체 궤도 데이터 로드
+        self.ephemeris = load('de421.bsp')
+        # 태양계 행성 객체 딕셔너리 (Skyfield 이름과 key를 맞춰 둠)
+        self.planets = {
+            'Sun': self.ephemeris['sun'],
+            'Moon': self.ephemeris['moon'],
+            'Mercury': self.ephemeris['mercury'],
+            'Venus': self.ephemeris['venus'],
+            'Mars': self.ephemeris['mars'],
+            'Jupiter': self.ephemeris['jupiter barycenter'],
+            'Saturn': self.ephemeris['saturn barycenter'],
+            'Uranus': self.ephemeris['uranus barycenter'],
+            'Neptune': self.ephemeris['neptune barycenter'],
+            'Pluto': self.ephemeris['pluto barycenter'],
+        }
         self.ts = load.timescale()
 
-    def calculate_planet_positions(self, birth_datetime: datetime, location: Dict[str, float]) -> Dict[str, float]:
+    def calculate_planet_positions(self, birth_datetime: datetime, location: tuple):
         """
-        행성별 황도좌표 (Ecliptic Longitude)를 계산
-        :param birth_datetime: datetime 객체
-        :param location: {"latitude": float, "longitude": float}
-        :return: {"Sun": 120.54, "Moon": 48.32, ...}
+        주어진 생년월일과 위치(latitude, longitude)에서
+        각 행성의 적경(ra)과 적위(dec) 계산
+        
+        Parameters:
+          birth_datetime: datetime (timezone-aware 혹은 UTC)
+          location: (latitude(float), longitude(float))
+        
+        Returns:
+          dict {
+            'Sun': {'ra_degrees': float, 'dec_degrees': float},
+            ...
+          }
         """
-        t = self.ts.utc(birth_datetime.year, birth_datetime.month, birth_datetime.day,
-                        birth_datetime.hour, birth_datetime.minute)
+        # datetime이 timezone-aware 아니면 UTC로 가정
+        if birth_datetime.tzinfo is None:
+            birth_datetime = birth_datetime.replace(tzinfo=timezone.utc)
+        utc_dt = birth_datetime.astimezone(timezone.utc)
 
-        observer = Topos(latitude_degrees=location['latitude'], longitude_degrees=location['longitude'])
+        # Skyfield 시간 객체 생성
+        t = self.ts.utc(utc_dt.year, utc_dt.month, utc_dt.day, utc_dt.hour, utc_dt.minute, utc_dt.second)
 
-        result = {}
-        for planet_name in ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars',
-                            'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Earth']:
-            planet = self.planets[planet_name]
-            astrometric = (planet - self.planets['earth']).at(t)
-            ecliptic = astrometric.ecliptic_latlon()
-            longitude_deg = ecliptic[1].degrees
-            result[planet_name] = round(longitude_deg, 2)
+        lat, lon = location
+        observer = Topos(latitude_degrees=float(lat), longitude_degrees=float(lon))
 
-        return result
+        planet_positions = {}
+
+        for name, body in self.planets.items():
+            # 관측자 위치에서 본 행성 위치
+            astrometric = (self.ephemeris['earth'] + observer).at(t).observe(body)
+            ra, dec, distance = astrometric.radec()
+
+            planet_positions[name] = {
+                'ra_degrees': ra.hours * 15.0,  # RA 시 → 도 (360도 = 24시)
+                'dec_degrees': dec.degrees,
+            }
+
+        return planet_positions

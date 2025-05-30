@@ -1,35 +1,22 @@
 import json
-from pathlib import Path
-from typing import Dict, Optional
 
 class GateMapper:
-    def __init__(self, mapping_file: str):
-        self.mapping_file = Path(mapping_file)
-        self.gate_data = self._load_gate_mapping()
+    def __init__(self, mapping_file):
+        with open(mapping_file, 'r', encoding='utf-8') as f:
+            self.gate_mapping = json.load(f)
+        self.sorted_gates = sorted(
+            (float(v['start_degree']), int(k)) for k, v in self.gate_mapping.items()
+        )
 
-    def _load_gate_mapping(self) -> Dict[str, Dict[str, int]]:
-        if not self.mapping_file.exists():
-            raise FileNotFoundError(f"Gate mapping file not found: {self.mapping_file}")
-        with open(self.mapping_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data
-
-    def get_gate_info(self, planet_name: str) -> Optional[Dict[str, int]]:
+    def ra_to_gate(self, ra_deg):
         """
-        주어진 행성 이름으로 게이트 정보 조회
-        :param planet_name: ex) "Sun", "Earth"
-        :return: {"gate": int, "line": int} 또는 None
+        RA (황경) 값을 휴먼디자인 게이트 번호로 변환
+        휴먼디자인은 360도를 64개 게이트로 나누며
+        기준 0도가 아닌 13도부터 게이트 1번 시작(오프셋 13도 적용)
         """
-        return self.gate_data.get(planet_name)
-
-    def get_all_mappings(self) -> Dict[str, Dict[str, int]]:
-        return self.gate_data
-
-# 테스트 용 메인 실행부
-if __name__ == "__main__":
-    gm = GateMapper("data/gate_mapping.json")
-    sun_gate = gm.get_gate_info("Sun")
-    print(f"Sun gate info: {sun_gate}")
-
-    all_data = gm.get_all_mappings()
-    print(f"All gate mappings: {all_data}")
+        offset_deg = 13
+        adjusted_deg = (ra_deg - offset_deg) % 360
+        gate = int(adjusted_deg // 5.625) + 1
+        if gate > 64:
+            gate = 64
+        return gate
